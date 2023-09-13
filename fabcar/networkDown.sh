@@ -16,3 +16,4 @@ popd
 rm -rf javascript/wallet/*
 rm -rf java/wallet/*
 rm -rf typescript/wallet/*
+rm -rf HLF_reservation/wallet/*

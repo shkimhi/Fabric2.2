@@ -1,0 +1,44 @@
+[
+    {
+        "transactionName": "viddingExists",
+        "transactionLabel": "A test viddingExists transaction",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "createVidding",
+        "transactionLabel": "A test createVidding transaction",
+        "arguments": [
+            "001",
+            "some value"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "readVidding",
+        "transactionLabel": "A test readVidding transaction",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "updateVidding",
+        "transactionLabel": "A test updateVidding transaction",
+        "arguments": [
+            "001",
+            "some other value"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "deleteVidding",
+        "transactionLabel": "A test deleteVidding transaction",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
+    }
+]

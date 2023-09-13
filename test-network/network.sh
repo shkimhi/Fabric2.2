@@ -5,22 +5,21 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-# This script brings up a Hyperledger Fabric network for testing smart contracts
-# and applications. The test network consists of two organizations with one
-# peer each, and a single node Raft ordering service. Users can also use this
-# script to create a channel deploy a chaincode on the channel
+# 이 스크립트는 스마트 계약 및 애플리케이션을 테스트하기 위해 Hyperledger Fabric 네트워크를 불러옵니다. 
+# 테스트 네트워크는 각각 피어가 하나씩 있는 두 조직과 단일 노드 Raft 주문 서비스로 구성됩니다.
+# 사용자는 이 스크립트를 사용하여 채널을 만들고 채널에 체인코드를 배포할 수도 있습니다
 #
-# prepending $PWD/../bin to PATH to ensure we are picking up the correct binaries
-# this may be commented out to resolve installed version of tools if desired
+# $PWD/../bin을 PATH에 추가하여 올바른 바이너리를 선택했는지 확인합니다.
+# 원하는 경우 설치된 도구 버전을 해결하기 위해 주석 처리할 수 있습니다.
 export PATH=${PWD}/../bin:$PATH
 export FABRIC_CFG_PATH=${PWD}/configtx
 export VERBOSE=false
 
 . scripts/utils.sh
 
-# Obtain CONTAINER_IDS and remove them
-# TODO Might want to make this optional - could clear other containers
-# This function is called when you bring a network down
+# CONTAINER_IDS 획득 및 제거
+# TODO 이것을 선택 사항으로 만들 수 있음 - 다른 컨테이너를 지울 수 있음
+# 이 함수는 네트워크를 종료할 때 호출됩니다.
 function clearContainers() {
   CONTAINER_IDS=$(docker ps -a | awk '($2 ~ /dev-peer.*/) {print $1}')
   if [ -z "$CONTAINER_IDS" -o "$CONTAINER_IDS" == " " ]; then
@@ -30,9 +29,8 @@ function clearContainers() {
   fi
 }
 
-# Delete any images that were generated as a part of this setup
-# specifically the following images are often left behind:
-# This function is called when you bring the network down
+# 이 설정의 일부로 생성된 이미지를 삭제합니다. 특히 다음 이미지는 종종 남겨집니다.
+# 이 함수는 네트워크를 종료할 때 호출됩니다.
 function removeUnwantedImages() {
   DOCKER_IMAGE_IDS=$(docker images | awk '($1 ~ /dev-peer.*/) {print $3}')
   if [ -z "$DOCKER_IMAGE_IDS" -o "$DOCKER_IMAGE_IDS" == " " ]; then
@@ -42,25 +40,23 @@ function removeUnwantedImages() {
   fi
 }
 
-# Versions of fabric known not to work with the test network
+# 테스트 네트워크에서 작동하지 않는 것으로 알려진 패브릭 버전
 NONWORKING_VERSIONS="^1\.0\. ^1\.1\. ^1\.2\. ^1\.3\. ^1\.4\."
 
-# Do some basic sanity checking to make sure that the appropriate versions of fabric
-# binaries/images are available. In the future, additional checking for the presence
-# of go or other items could be added.
+# 적절한 버전의 패브릭 바이너리/이미지를 사용할 수 있는지 확인하기 위해 몇 가지 기본적인 온전성 검사를 수행합니다. 
+# 향후에는 go 또는 기타 항목의 존재 여부에 대한 추가 검사가 추가될 수 있습니다.
 function checkPrereqs() {
-  ## Check if your have cloned the peer binaries and configuration files.
+  ## 피어 바이너리 및 구성 파일을 복제했는지 확인하십시오.
   peer version > /dev/null 2>&1
 
   if [[ $? -ne 0 || ! -d "../config" ]]; then
-    errorln "Peer binary and configuration files not found.."
+    errorln "피어 바이너리 및 구성 파일을 찾을 수 없습니다.."
     errorln
-    errorln "Follow the instructions in the Fabric docs to install the Fabric Binaries:"
-    errorln "https://hyperledger-fabric.readthedocs.io/en/latest/install.html"
+    errorln "Fabric 문서의 지침에 따라 Fabric 바이너리를 설치하십시오: "
+    errorln "https://hyperledger-fabric.readthedocs.io/en/latest/install.html"    
     exit 1
   fi
-  # use the fabric tools container to see if the samples and binaries match your
-  # docker images
+  # 패브릭 도구 컨테이너를 사용하여 샘플 및 바이너리가 도커 이미지와 일치하는지 확인
   LOCAL_VERSION=$(peer version | sed -ne 's/^ Version: //p')
   DOCKER_IMAGE_VERSION=$(docker run --rm hyperledger/fabric-tools:$IMAGETAG peer version | sed -ne 's/^ Version: //p')
 
@@ -68,29 +64,29 @@ function checkPrereqs() {
   infoln "DOCKER_IMAGE_VERSION=$DOCKER_IMAGE_VERSION"
 
   if [ "$LOCAL_VERSION" != "$DOCKER_IMAGE_VERSION" ]; then
-    warnln "Local fabric binaries and docker images are out of  sync. This may cause problems."
+    warnln "로컬 패브릭 바이너리와 도커 이미지가 동기화되지 않았습니다. 이로 인해 문제가 발생할 수 있습니다."
   fi
 
   for UNSUPPORTED_VERSION in $NONWORKING_VERSIONS; do
     infoln "$LOCAL_VERSION" | grep -q $UNSUPPORTED_VERSION
     if [ $? -eq 0 ]; then
-      fatalln "Local Fabric binary version of $LOCAL_VERSION does not match the versions supported by the test network."
+      fatalln "$LOCAL_VERSION 의 로컬 패브릭 바이너리 버전이 테스트 네트워크에서 지원하는 버전과 일치하지 않습니다."
     fi
 
     infoln "$DOCKER_IMAGE_VERSION" | grep -q $UNSUPPORTED_VERSION
     if [ $? -eq 0 ]; then
-      fatalln "Fabric Docker image version of $DOCKER_IMAGE_VERSION does not match the versions supported by the test network."
+      fatalln "$DOCKER_IMAGE_VERSION 의 Fabric Docker 이미지 버전이 테스트 네트워크에서 지원하는 버전과 일치하지 않습니다."
     fi
   done
 
-  ## Check for fabric-ca
+## fabric-ca 확인
   if [ "$CRYPTO" == "Certificate Authorities" ]; then
 
     fabric-ca-client version > /dev/null 2>&1
     if [[ $? -ne 0 ]]; then
-      errorln "fabric-ca-client binary not found.."
+      errorln "fabric-ca-client 바이너리를 찾을 수 없습니다.."
       errorln
-      errorln "Follow the instructions in the Fabric docs to install the Fabric Binaries:"
+      errorln "Fabric 문서의 지침에 따라 Fabric 바이너리를 설치하십시오:"
       errorln "https://hyperledger-fabric.readthedocs.io/en/latest/install.html"
       exit 1
     fi
@@ -100,84 +96,77 @@ function checkPrereqs() {
     infoln "CA_DOCKER_IMAGE_VERSION=$CA_DOCKER_IMAGE_VERSION"
 
     if [ "$CA_LOCAL_VERSION" != "$CA_DOCKER_IMAGE_VERSION" ]; then
-      warnln "Local fabric-ca binaries and docker images are out of sync. This may cause problems."
+      warnln "로컬 fabric-ca 바이너리와 도커 이미지가 동기화되지 않았습니다. 이로 인해 문제가 발생할 수 있습니다."
     fi
   fi
 }
 
-# Before you can bring up a network, each organization needs to generate the crypto
-# material that will define that organization on the network. Because Hyperledger
-# Fabric is a permissioned blockchain, each node and user on the network needs to
-# use certificates and keys to sign and verify its actions. In addition, each user
-# needs to belong to an organization that is recognized as a member of the network.
-# You can use the Cryptogen tool or Fabric CAs to generate the organization crypto
-# material.
+# 네트워크를 시작하기 전에 각 조직은 네트워크에서 해당 조직을 정의할 암호화 자료를 생성해야 합니다.
+# Hyperledger Fabric은 허가된 블록체인이기 때문에 네트워크의 각 노드와 사용자는 인증서와 키를 사용하여 해당 작업에 서명하고 확인해야 합니다.
+# 또한 각 사용자는 네트워크의 구성원으로 인식되는 조직에 속해야 합니다.
+# Cryptogen 도구 또는 Fabric CA를 사용하여 조직 암호화 자료를 생성할 수 있습니다.
 
-# By default, the sample network uses cryptogen. Cryptogen is a tool that is
-# meant for development and testing that can quickly create the certificates and keys
-# that can be consumed by a Fabric network. The cryptogen tool consumes a series
-# of configuration files for each organization in the "organizations/cryptogen"
-# directory. Cryptogen uses the files to generate the crypto  material for each
-# org in the "organizations" directory.
+# 기본적으로 샘플 네트워크는 cryptogen을 사용합니다.
+# Cryptogen은 Fabric 네트워크에서 사용할 수 있는 인증서와 키를 빠르게 생성할 수 있는 개발 및 테스트용 도구입니다.
+# cryptogen 도구는 "organizations/cryptogen" 디렉터리에서 각 조직에 대한 일련의 구성 파일을 사용합니다.
+# Cryptogen은 파일을 사용하여 "조직" 디렉터리의 각 조직에 대한 암호화 자료를 생성합니다.
 
-# You can also Fabric CAs to generate the crypto material. CAs sign the certificates
-# and keys that they generate to create a valid root of trust for each organization.
-# The script uses Docker Compose to bring up three CAs, one for each peer organization
-# and the ordering organization. The configuration file for creating the Fabric CA
-# servers are in the "organizations/fabric-ca" directory. Within the same directory,
-# the "registerEnroll.sh" script uses the Fabric CA client to create the identities,
-# certificates, and MSP folders that are needed to create the test network in the
-# "organizations/ordererOrganizations" directory.
+#  Fabric CA가 암호화 자료를 생성할 수도 있습니다. 
+# CA는 각 조직에 대해 유효한 신뢰 루트를 생성하기 위해 생성하는 인증서와 키에 서명합니다.
+# 이 스크립트는 Docker Compose를 사용하여 각 피어 조직에 대해 하나씩 세 개의 CA를 가져옵니다.
+# Fabric CA 서버를 생성하기 위한 구성 파일은 "organizations/fabric-ca" 디렉토리에 있습니다.
+# 동일한 디렉터리 내에서 "registerEnroll.sh" 스크립트는 Fabric CA 클라이언트를 사용하여 
+# "organizations/ordererOrganizations" 디렉터리에 테스트 네트워크를 만드는 데 필요한 ID, 인증서 및 MSP 폴더를 만듭니다.
 
-# Create Organization crypto material using cryptogen or CAs
+# cryptogen 또는 CA를 사용하여 조직 암호화 자료 생성
 function createOrgs() {
   if [ -d "organizations/peerOrganizations" ]; then
     rm -Rf organizations/peerOrganizations && rm -Rf organizations/ordererOrganizations
   fi
 
-  # Create crypto material using cryptogen
+  # cryptogen 을 사용하여 crypto material 생성 
   if [ "$CRYPTO" == "cryptogen" ]; then
     which cryptogen
     if [ "$?" -ne 0 ]; then
-      fatalln "cryptogen tool not found. exiting"
+      fatalln "cryptogen 도구를 찾을 수 없습니다. 종료"
     fi
-    infoln "Generating certificates using cryptogen tool"
+    infoln "cryptogen 도구를 사용하여 인증서 생성"
 
-    infoln "Creating Org1 Identities"
+    infoln "Org1 ID 만들기"
 
     set -x
     cryptogen generate --config=./organizations/cryptogen/crypto-config-org1.yaml --output="organizations"
     res=$?
     { set +x; } 2>/dev/null
     if [ $res -ne 0 ]; then
-      fatalln "Failed to generate certificates..."
+      fatalln "인증서를 생성하지 못했습니다..."
     fi
 
-    infoln "Creating Org2 Identities"
+    infoln "Org2 ID 만들기"
 
     set -x
     cryptogen generate --config=./organizations/cryptogen/crypto-config-org2.yaml --output="organizations"
     res=$?
     { set +x; } 2>/dev/null
     if [ $res -ne 0 ]; then
-      fatalln "Failed to generate certificates..."
+      fatalln "인증서를 생성하지 못했습니다..."
     fi
 
-    infoln "Creating Orderer Org Identities"
+    infoln "오더러 조직 ID 만들기"
 
     set -x
     cryptogen generate --config=./organizations/cryptogen/crypto-config-orderer.yaml --output="organizations"
     res=$?
     { set +x; } 2>/dev/null
     if [ $res -ne 0 ]; then
-      fatalln "Failed to generate certificates..."
+      fatalln "인증서를 생성하지 못했습니다..."
     fi
 
   fi
 
-  # Create crypto material using Fabric CA
+# Fabric CA를 사용하여 crypto material 생성
   if [ "$CRYPTO" == "Certificate Authorities" ]; then
-    infoln "Generating certificates using Fabric CA"
+    infoln "Fabric CA를 사용하여 인증서 생성"
 
     IMAGE_TAG=${CA_IMAGETAG} docker-compose -f $COMPOSE_FILE_CA up -d 2>&1
 
@@ -192,80 +181,77 @@ function createOrgs() {
       fi
     done
 
-    infoln "Creating Org1 Identities"
+    infoln "Org1 ID 만들기"
 
     createOrg1
 
-    infoln "Creating Org2 Identities"
+    infoln "Org2 ID 만들기"
 
     createOrg2
 
-    infoln "Creating Orderer Org Identities"
+    infoln "Orderer 조직 ID 만들기"
 
     createOrderer
 
   fi
 
-  infoln "Generating CCP files for Org1 and Org2"
+  infoln "Org1 및 Org2용 CCP 파일 생성"
   ./organizations/ccp-generate.sh
 }
 
-# Once you create the organization crypto material, you need to create the
-# genesis block of the orderer system channel. This block is required to bring
-# up any orderer nodes and create any application channels.
+# 조직 crypto material을 생성했으면 orderer 시스템 채널의 제네시스 블록을 생성해야 합니다.
+#이 블록은 주문자 노드를 불러오고 애플리케이션 채널을 생성하는 데 필요합니다.
 
-# The configtxgen tool is used to create the genesis block. Configtxgen consumes a
-# "configtx.yaml" file that contains the definitions for the sample network. The
-# genesis block is defined using the "TwoOrgsOrdererGenesis" profile at the bottom
-# of the file. This profile defines a sample consortium, "SampleConsortium",
-# consisting of our two Peer Orgs. This consortium defines which organizations are
-# recognized as members of the network. The peer and ordering organizations are defined
-# in the "Profiles" section at the top of the file. As part of each organization
-# profile, the file points to a the location of the MSP directory for each member.
-# This MSP is used to create the channel MSP that defines the root of trust for
-# each organization. In essence, the channel MSP allows the nodes and users to be
-# recognized as network members. The file also specifies the anchor peers for each
-# peer org. In future steps, this same file is used to create the channel creation
-# transaction and the anchor peer updates.
+# configtxgen 도구는 제네시스 블록을 생성하는 데 사용됩니다.
+# Configtxgen은 샘플 네트워크에 대한 정의가 포함된 "configtx.yaml" 파일을 사용합니다.
+# 제네시스 블록은 파일 하단의 "TwoOrgsOrdererGenesis" 프로필을 사용하여 정의됩니다.
+# 이 프로필은 두 개의 피어 조직으로 구성된 샘플 컨소시엄인 "SampleConsortium"을 정의합니다.
+# 이 컨소시엄은 네트워크의 구성원으로 인식되는 조직을 정의합니다.
+# 피어 및 순서 지정 조직은 파일 맨 위의 "Profiles" 섹션에서 정의됩니다.
+# 각 조직 프로필의 일부로 파일은 각 구성원의 MSP 디렉터리 위치를 가리킵니다.
+# 이 MSP는 각 조직의 신뢰 루트를 정의하는 채널 MSP를 만드는 데 사용됩니다.
+# 본질적으로 채널 MSP는 노드와 사용자가 네트워크 구성원으로 인식되도록 합니다.
+# 이 파일은 또한 각 피어 조직에 대한 앵커 피어를 지정합니다.
+# 이후 단계에서 이 동일한 파일을 사용하여 채널 생성 트랜잭션 및 앵커 피어 업데이트를 생성합니다.
 #
 #
-# If you receive the following warning, it can be safely ignored:
+# 다음과 같은 경고가 표시되면 무시해도 됩니다.
 #
 # [bccsp] GetDefault -> WARN 001 Before using BCCSP, please call InitFactories(). Falling back to bootBCCSP.
 #
-# You can ignore the logs regarding intermediate certs, we are not using them in
-# this crypto implementation.
+# 중간 인증서에 관한 로그는 무시해도 됩니다. 이 암호화 구현에서는 이를 사용하지 않습니다.
+
 
 # Generate orderer system channel genesis block.
+# 주문자 시스템 채널 제네시스 블록을 생성합니다.
 function createConsortium() {
   which configtxgen
   if [ "$?" -ne 0 ]; then
-    fatalln "configtxgen tool not found."
+    fatalln "configtxgen 도구를 찾을 수 없음."
   fi
 
-  infoln "Generating Orderer Genesis block"
+  infoln "Orderer Genesis 블록 생성"
 
   # Note: For some unknown reason (at least for now) the block file can't be
   # named orderer.genesis.block or the orderer will fail to launch!
+  # 참고: 알 수 없는 이유로(적어도 지금은) 블록 파일의 이름을 orderer.genesis.block으로 지정할 수 없거나 orderer가 시작되지 않습니다!
   set -x
   configtxgen -profile TwoOrgsOrdererGenesis -channelID system-channel -outputBlock ./system-genesis-block/genesis.block
   res=$?
   { set +x; } 2>/dev/null
   if [ $res -ne 0 ]; then
-    fatalln "Failed to generate orderer genesis block..."
+    fatalln "orderer 제네시스 블록 생성 실패..."
   fi
 }
 
-# After we create the org crypto material and the system channel genesis block,
-# we can now bring up the peers and ordering service. By default, the base
-# file for creating the network is "docker-compose-test-net.yaml" in the ``docker``
-# folder. This file defines the environment variables and file mounts that
-# point the crypto material and genesis block that were created in earlier.
+# 조직 crypto material와 시스템 채널 제네시스 블록을 생성한 후 이제 피어 및 주문 서비스를 불러올 수 있습니다
+# 기본적으로 네트워크 생성을 위한 기본 파일은 ``docker`` 폴더의 "docker-compose-test-net.yaml"입니다.
+# 이 파일은 이전에 생성된 crypto material 및 제네시스 블록을 가리키는 환경 변수 및 파일 마운트를 정의합니다.
 
-# Bring up the peer and orderer nodes using docker compose.
+# docker compose를 사용하여 피어 및 주문자 노드를 불러옵니다.
 function networkUp() {
   checkPrereqs
-  # generate artifacts if they don't exist
+  # 존재하지 않는 경우 아티팩트 생성
   if [ ! -d "organizations/peerOrganizations" ]; then
     createOrgs
     createConsortium
@@ -281,7 +267,7 @@ function networkUp() {
 
   docker ps -a
   if [ $? -ne 0 ]; then
-    fatalln "Unable to start network"
+    fatalln "네트워크를 시작할 수 없습니다"
   fi
 }
 

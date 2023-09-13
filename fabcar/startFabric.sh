@@ -32,6 +32,7 @@ rm -rf javascript/wallet/*
 rm -rf java/wallet/*
 rm -rf typescript/wallet/*
 rm -rf go/wallet/*
+rm -rf HLF_reservation/wallet/*
 
 # launch network; create channel and join peer to channel
 pushd ../test-network
