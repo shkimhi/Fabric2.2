@@ -64,7 +64,7 @@ function createOrg1() {
 
   mkdir -p ${PWD}/organizations/peerOrganizations/org1.example.com/ca
   cp ${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp/cacerts/* ${PWD}/organizations/peerOrganizations/org1.example.com/ca/ca.org1.example.com-cert.pem
-  cp ${PWD}/organizations/peerOrganizations/org1.example.com/ca/ca.org1.example.com-cert.pem ${PWD}/../fabcar/HLF_reservation/src/main/resources
+# cp ${PWD}/organizations/peerOrganizations/org1.example.com/ca/ca.org1.example.com-cert.pem ${PWD}/../fabcar/HLF_reservation/src/main/resources
 
   infoln "Generating the user msp"
   set -x
